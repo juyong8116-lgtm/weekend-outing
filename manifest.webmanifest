@@ -1,0 +1,15 @@
+{
+  "name": "주말 나들이 추천기",
+  "short_name": "주말 나들이",
+  "description": "관광주민증 지역 나들이 장소를 날씨·거리로 추천하고 T맵으로 연결",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f5f1",
+  "theme_color": "#1f6b4f",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
