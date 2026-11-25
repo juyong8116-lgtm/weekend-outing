@@ -252,11 +252,17 @@ body{font-size:15px;overscroll-behavior-y:none}
 .view{scroll-margin-top:64px}
 .now{padding:12px 14px;gap:10px}.place .nm{font-size:16px}.wmsg{font-size:12px}
 .nojs{padding:12px 14px;font-size:13px;color:var(--warm);background:var(--warm-soft)}
+.food{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:8px}
+.food .fh{font-weight:700;font-size:13px}
+.food .fseg{align-self:flex-start;max-width:100%}
+.food .fseg button{padding:7px 10px;font-size:12px}
+.food .fhow{font-size:12px;color:var(--muted)}
+.food .fgo{align-self:flex-start;white-space:normal}
 </style>
 
 <div class="app">
   <header class="appbar">
-    <div class="brand"><b>주말 나들이</b><span class="ver">v19</span></div>
+    <div class="brand"><b>주말 나들이</b><span class="ver">v20</span></div>
     <div class="ctl">
       <button class="btn small" id="geoBtn" type="button" aria-label="현재 위치 찾기">현재 위치</button>
       <select id="citySel" aria-label="출발 도시 고르기"></select>
@@ -351,7 +357,7 @@ body{font-size:15px;overscroll-behavior-y:none}
         <h2>설정</h2>
         <div class="opts"><button class="btn" id="setBtn" type="button">T맵 연결 설정</button><button class="btn" id="phoneBtn" type="button">다른 기기로 열기 (QR)</button></div>
         <div class="phone" id="phoneBox" hidden><div class="code" id="phoneQR"></div><p>휴대폰 카메라로 찍으면 이 페이지가 열립니다 (같은 Claude 계정 필요).</p></div>
-        <p class="ver2">버전 19 · 2026.11.25 15:50 수정</p>
+        <p class="ver2">버전 20 · 2026.11.25 16:40 수정</p>
       </div>
     </section>
   </main>
@@ -3066,6 +3072,27 @@ function wxLine(p){
   if(!p.wx||!p.wx.length)return "";
   return p.wx.map(function(w){return w.day.split(" ")[1]+" "+wmo(w.code)+" "+Math.round(w.lo)+"°/"+Math.round(w.hi)+"°";}).join(" · ");
 }
+// ---------- 주변 맛집 (출처별 찾기) ----------
+var FOOD={
+  local:{k:"현지인 추천",how:"언론 기사에서 현지인이 꼽은 식당만 찾습니다 (네이버 뉴스).",
+    url:function(p){return "https://search.naver.com/search.naver?where=news&query="+encodeURIComponent(p.r+" 현지인 맛집");}},
+  sns:{k:"SNS 추천",how:"블로그 후기 중 협찬·체험단·원고료·광고 글을 빼고 찾습니다 (네이버 블로그).",
+    url:function(p){return "https://search.naver.com/search.naver?where=blog&query="+encodeURIComponent(p.name+" 맛집 -협찬 -체험단 -원고료 -소정의 -제공받아 -지원받아 -광고");}},
+  gov:{k:"지자체 추천",how:"시·군청 등 정부 누리집(go.kr)에 실린 음식점만 찾습니다 (모범음식점·향토음식점 등).",
+    url:function(p){return "https://www.google.com/search?q="+encodeURIComponent("site:go.kr "+p.r+" (모범음식점 OR 향토음식 OR 맛집 OR 음식점)");}}
+};
+var foodKey=load("wk-food");if(!FOOD[foodKey])foodKey="local";
+function foodHtml(p){
+  return '<div class="food"><div class="fh">주변 맛집</div><div class="seg fseg" role="group" aria-label="맛집 추천 출처">'+
+    Object.keys(FOOD).map(function(k){return '<button type="button" data-f="'+k+'" aria-pressed="'+(k===foodKey)+'">'+FOOD[k].k+'</button>';}).join("")+
+    '</div><p class="fhow">'+esc(FOOD[foodKey].how)+'</p><a class="btn fgo" target="_blank" rel="noopener" href="'+FOOD[foodKey].url(p)+'">'+esc(foodKey==="sns"?p.name+" 주변":p.r)+' 맛집 보기 ('+FOOD[foodKey].k+')</a></div>';
+}
+function bindFood(row,p){
+  row.querySelectorAll(".fseg button").forEach(function(b){b.addEventListener("click",function(){
+    foodKey=b.dataset.f;store("wk-food",foodKey);
+    document.querySelectorAll("#list .row").forEach(function(r){var q=state.list[+r.dataset.i];var f=r.querySelector(".food");if(q&&f){f.outerHTML=foodHtml(q);bindFood(r,q);}});
+  });});
+}
 function draw(list){
   state.list=list;var box=$("list");box.innerHTML="";
   list.forEach(function(p,i){
@@ -3077,10 +3104,12 @@ function draw(list){
       routeBtn(p,"btn main go")+
       '<div class="more" hidden><div>'+esc(p.d)+'</div>'+
       (perks?'<ul>'+perks.map(function(k){return '<li>'+esc(k[0])+' <b style="color:var(--warm)">'+k[1]+'</b></li>';}).join("")+'</ul><div class="src">관광주민증 할인 예시 · '+perks.map(function(k){return SRC[k[2]].n.split(",")[0];}).filter(function(v,j,a){return a.indexOf(v)===j;}).join(", ")+' 보도 기준</div>':'<div class="src">이 지역 가맹점 할인은 대한민국 구석구석 앱에서 확인하세요.</div>')+
+      foodHtml(p)+
       '<div class="acts"><button class="btn onmap" type="button">지도에서 보기</button><button class="btn cpn" type="button">장소 이름 복사</button></div></div>';
     row.querySelector(".go").addEventListener("click",function(e){e.stopPropagation();});
     row.querySelector(".more").addEventListener("click",function(e){e.stopPropagation();});
     row.querySelector(".cpn").addEventListener("click",function(){copyText(p.name,this);});
+    bindFood(row,p);
     row.querySelector(".onmap").addEventListener("click",function(){showView("map");mapFitted=true;showRec(i);});
     row.addEventListener("click",function(){select(i,true);});
     row.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target===row)select(i,true);});
