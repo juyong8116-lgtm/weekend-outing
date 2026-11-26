@@ -283,7 +283,7 @@ body{font-size:15px;overscroll-behavior-y:none}
 
 <div class="app">
   <header class="appbar">
-    <div class="brand"><b>주말 나들이</b><span class="ver">v24</span></div>
+    <div class="brand"><b>주말 나들이</b><span class="ver">v25</span></div>
     <div class="ctl">
       <button class="btn small" id="geoBtn" type="button" aria-label="현재 위치 찾기">현재 위치</button>
       <select id="citySel" aria-label="출발 도시 고르기"></select>
@@ -378,7 +378,7 @@ body{font-size:15px;overscroll-behavior-y:none}
         <h2>설정</h2>
         <div class="opts"><button class="btn" id="setBtn" type="button">T맵 연결 설정</button><button class="btn" id="phoneBtn" type="button">다른 기기로 열기 (QR)</button></div>
         <div class="phone" id="phoneBox" hidden><div class="code" id="phoneQR"></div><p>휴대폰 카메라로 찍으면 앱 주소(weekend-outing-ebon.vercel.app)가 열립니다.</p></div>
-        <p class="ver2">버전 24 · 2026.11.26 11:00 수정</p>
+        <p class="ver2">버전 25 · 2026.11.26 11:00 수정</p>
       </div>
     </section>
   </main>
@@ -2833,7 +2833,8 @@ function tmapRoute(p){return "tmap://route?goalname="+encodeURIComponent(p.name)
 var IS_MOBILE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));
 // T맵 앱키(SK open API, 무료 발급)를 넣으면 https 링크로 T맵 앱을 엶. 없으면 tmap:// 앱 링크
 function tmapKey(){return (load("wk-tmapkey")||"").trim();}
-function tmapLink(p){if(p.search)return tmapSearch(p.name);var k=tmapKey();return k?"https://apis.openapi.sk.com/tmap/app/routes?appKey="+encodeURIComponent(k)+"&name="+encodeURIComponent(p.name)+"&lon="+p.lon+"&lat="+p.lat:tmapRoute(p);}
+var IN_CLAUDE=/(^|\.)claude\.ai$|claudeusercontent|anthropic/.test(location.hostname)||location.protocol==="about:";
+function tmapLink(p){if(p.search)return tmapSearch(p.name);var k=tmapKey();return (k&&IN_CLAUDE)?"https://apis.openapi.sk.com/tmap/app/routes?appKey="+encodeURIComponent(k)+"&name="+encodeURIComponent(p.name)+"&lon="+p.lon+"&lat="+p.lat:tmapRoute(p);}
 var LINKS=[];function regLink(p){LINKS.push({name:p.name,lat:p.lat,lon:p.lon});return LINKS.length-1;}
 function routeBtn(p,cls,inner){var id=regLink(p);
   if(IS_MOBILE){var u=tmapLink(p);return '<a class="'+cls+'" href="'+esc(u)+'"'+(/^https/.test(u)?' target="_blank" rel="noopener"':'')+' data-tl="'+id+'">'+(inner||'T맵 길찾기')+'</a>';}
@@ -3125,7 +3126,7 @@ var CUISINE={korean:"한식",chinese:"중식",japanese:"일식",sushi:"일식",r
 function fmtKm(k){return k==null?"":(k<1?Math.round(k*1000/10)*10+"m":k.toFixed(1)+"km");}
 function nearTmap(p,key){
   var u="https://apis.openapi.sk.com/tmap/pois?version=1&format=json&searchKeyword="+encodeURIComponent("음식점")+"&searchType=all&searchtypCd=R&centerLat="+p.lat+"&centerLon="+p.lon+"&radius=3&page=1&count=15&reqCoordType=WGS84GEO&resCoordType=WGS84GEO&multiPoint=N&appKey="+encodeURIComponent(key);
-  return fetchT(u,9000,{headers:{"Accept":"application/json"}}).then(function(r){if(r.status===204)return {};if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
+  return fetchT(u,9000,{headers:{"Accept":"application/json"}}).then(function(r){if(r.status===204)return {};if(r.status===401||r.status===403){store("wk-tmapkey","");}if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
     var a=(((j||{}).searchPoiInfo||{}).pois||{}).poi||[];
     return a.map(function(o){var lat=parseFloat(o.frontLat||o.noorLat),lon=parseFloat(o.frontLon||o.noorLon);
       return {name:o.name,lat:lat,lon:lon,cat:o.lowerBizName||o.middleBizName||"",addr:[o.middleAddrName,o.lowerAddrName].filter(Boolean).join(" "),km:o.radius!=null&&o.radius!==""?parseFloat(o.radius):(isFinite(lat)?km(p.lat,p.lon,lat,lon):null)};});
@@ -3234,7 +3235,11 @@ document.addEventListener("click",function(e){
 },true);
 $("tmapHelp").querySelector(".x").onclick=function(){$("tmapHelp").hidden=true;};
 $("tmapHelp").querySelector(".cp").onclick=function(){copyText($("tmapHelp").querySelector(".nm").textContent,this);};
-$("keyForm").addEventListener("submit",function(e){e.preventDefault();nearCache={};store("wk-tmapkey",$("tmapKey").value.trim());$("keyMsg").textContent=tmapKey()?"저장했습니다. 이제 T맵 버튼이 앱키 링크로 열립니다.":"앱키를 지웠습니다.";
+$("keyForm").addEventListener("submit",function(e){e.preventDefault();nearCache={};store("wk-tmapkey",$("tmapKey").value.trim());var km0=$("keyMsg"),k0=tmapKey();km0.textContent=k0?"앱키를 확인하는 중…":"앱키를 지웠습니다. 근처 식당은 OpenStreetMap 정보로 보여 드립니다.";
+  if(k0)fetchT("https://apis.openapi.sk.com/tmap/pois?version=1&format=json&searchKeyword="+encodeURIComponent("음식점")+"&count=1&appKey="+encodeURIComponent(k0),9000).then(function(r){
+    if(r.status===401||r.status===403){store("wk-tmapkey","");km0.textContent="이 앱키는 T맵에서 거절됐습니다(INVALID_API_KEY). 저장하지 않았습니다. SK open API에서 앱키와 TMAP 사용 신청을 확인해 주세요.";nearCache={};if(state.list.length)draw(state.list);return;}
+    km0.textContent="저장했습니다. 근처 식당 목록에 T맵 장소 검색을 씁니다.";
+  }).catch(function(){km0.textContent="저장했습니다. (지금은 앱키를 확인하지 못했습니다)";});
   if(state.list.length)draw(state.list);renderEvents();var d=$("tmapHelp");if(d.dataset.mode==="qr"){var p={name:d.querySelector(".nm").textContent};}});
 $("setBtn").addEventListener("click",function(){openHelp("set",null);});
 
