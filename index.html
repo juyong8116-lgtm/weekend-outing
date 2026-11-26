@@ -272,11 +272,18 @@ body{font-size:15px;overscroll-behavior-y:none}
 .food .fi b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .food .fi span{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .food .go2{flex:none}
+.food .fh .fsub{font-weight:400;font-size:11px;color:var(--faint);margin-left:6px}
+.food .fh3{font-weight:700;font-size:12px;color:var(--muted);margin-top:6px}
+.food .fitem{display:flex;align-items:center;gap:8px;padding:9px 2px;color:var(--fg);text-decoration:none;-webkit-tap-highlight-color:transparent}
+.food .fitem:active{background:var(--accent-soft)}
+.food .fl2 li{padding:0;display:block}
+.food .fgo2{flex:none;font-size:12px;font-weight:700;color:var(--surface);background:var(--accent);border-radius:6px;padding:4px 9px}
+.food .fsrc{font-size:11px;color:var(--faint)}
 </style>
 
 <div class="app">
   <header class="appbar">
-    <div class="brand"><b>주말 나들이</b><span class="ver">v22</span></div>
+    <div class="brand"><b>주말 나들이</b><span class="ver">v23</span></div>
     <div class="ctl">
       <button class="btn small" id="geoBtn" type="button" aria-label="현재 위치 찾기">현재 위치</button>
       <select id="citySel" aria-label="출발 도시 고르기"></select>
@@ -371,7 +378,7 @@ body{font-size:15px;overscroll-behavior-y:none}
         <h2>설정</h2>
         <div class="opts"><button class="btn" id="setBtn" type="button">T맵 연결 설정</button><button class="btn" id="phoneBtn" type="button">다른 기기로 열기 (QR)</button></div>
         <div class="phone" id="phoneBox" hidden><div class="code" id="phoneQR"></div><p>휴대폰 카메라로 찍으면 앱 주소(weekend-outing-ebon.vercel.app)가 열립니다.</p></div>
-        <p class="ver2">버전 22 · 2026.11.25 16:50 수정</p>
+        <p class="ver2">버전 23 · 2026.11.26 10:40 수정</p>
       </div>
     </section>
   </main>
@@ -2828,9 +2835,9 @@ var IS_MOBILE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(nav
 function tmapKey(){return (load("wk-tmapkey")||"").trim();}
 function tmapLink(p){if(p.search)return tmapSearch(p.name);var k=tmapKey();return k?"https://apis.openapi.sk.com/tmap/app/routes?appKey="+encodeURIComponent(k)+"&name="+encodeURIComponent(p.name)+"&lon="+p.lon+"&lat="+p.lat:tmapRoute(p);}
 var LINKS=[];function regLink(p){LINKS.push({name:p.name,lat:p.lat,lon:p.lon});return LINKS.length-1;}
-function routeBtn(p,cls){var id=regLink(p);
-  if(IS_MOBILE){var u=tmapLink(p);return '<a class="'+cls+'" href="'+esc(u)+'"'+(/^https/.test(u)?' target="_blank" rel="noopener"':'')+' data-tl="'+id+'">T맵 길찾기</a>';}
-  return '<a class="'+cls+'" href="#" data-tq="'+id+'">T맵으로 보내기</a>';}
+function routeBtn(p,cls,inner){var id=regLink(p);
+  if(IS_MOBILE){var u=tmapLink(p);return '<a class="'+cls+'" href="'+esc(u)+'"'+(/^https/.test(u)?' target="_blank" rel="noopener"':'')+' data-tl="'+id+'">'+(inner||'T맵 길찾기')+'</a>';}
+  return '<a class="'+cls+'" href="#" data-tq="'+id+'">'+(inner||'T맵으로 보내기')+'</a>';}
 function tmapSearch(q){return "tmap://search?name="+encodeURIComponent(q);}
 function dayLabel(iso){var d=new Date(iso+"T00:00:00");return (d.getMonth()+1)+"/"+d.getDate()+" "+"일월화수목금토"[d.getDay()];}
 function tripIdx(t){var o=[];for(var i=0;i<t.length&&o.length<4;i++){if(t[i]>=state.trip.s&&t[i]<=state.trip.e)o.push(i);}return o;}
@@ -3097,11 +3104,12 @@ var FOOD={
 };
 var foodKey=load("wk-food");if(!FOOD[foodKey])foodKey="local";
 function foodHtml(p){
-  return '<div class="food"><div class="fh">주변 맛집</div><div class="seg fseg" role="group" aria-label="맛집 추천 출처">'+
+  return '<div class="food"><div class="fh">주변 맛집 <span class="fsub">누르면 T맵 길찾기</span></div>'+
+    '<div class="fnear"></div>'+
+    '<div class="fh3">추천 기준으로 더 찾기</div><div class="seg fseg" role="group" aria-label="맛집 추천 출처">'+
     Object.keys(FOOD).map(function(k){return '<button type="button" data-f="'+k+'" aria-pressed="'+(k===foodKey)+'">'+FOOD[k].k+'</button>';}).join("")+
     '</div><p class="fhow">'+esc(FOOD[foodKey].how)+'</p><a class="btn fgo" target="_blank" rel="noopener" href="'+FOOD[foodKey].url(p)+'">'+esc(foodKey==="sns"?p.name+" 주변":p.r)+' 맛집 보기 ('+FOOD[foodKey].k+')</a>'+
-    '<div class="fnear" data-lat="'+p.lat+'" data-lon="'+p.lon+'"></div>'+
-    '<form class="fgoT"><label class="fl" for="fn'+p.lat+'">고른 맛집을 T맵으로</label><div class="fr"><input id="fn'+p.lat+'" type="text" placeholder="식당 이름 (예: ○○식당)" autocomplete="off" enterkeyhint="go"><button class="btn main" type="submit">T맵 길찾기</button></div></form></div>';
+    '<form class="fgoT"><label class="fl" for="fn'+p.lat+'">찾은 맛집을 T맵으로</label><div class="fr"><input id="fn'+p.lat+'" type="text" placeholder="식당 이름 (예: ○○식당)" autocomplete="off" enterkeyhint="go"><button class="btn main" type="submit">T맵 길찾기</button></div></form></div>';
 }
 function foodTmap(p,name){
   var q={name:(name.indexOf(p.r)===-1?p.r+" ":"")+name,search:true};
@@ -3111,28 +3119,43 @@ function foodTmap(p,name){
   setTimeout(function(){document.removeEventListener("visibilitychange",onHide);if(left||document.hidden)return;openHelp("fail",q);},1600);
   location.href=tmapSearch(q.name);
 }
-// T맵 주변 식당 목록 (사용자 앱키 필요, 가까운 순)
+// 근처 식당 목록: T맵 앱키가 있으면 T맵 장소 검색, 없으면 OpenStreetMap(키 필요 없음)
 var nearCache={};
+var CUISINE={korean:"한식",chinese:"중식",japanese:"일식",sushi:"일식",ramen:"일식",italian:"양식",pizza:"피자",burger:"버거",chicken:"치킨",fried_chicken:"치킨",noodle:"국수",barbecue:"고기구이",seafood:"해산물",coffee_shop:"카페",cafe:"카페",bakery:"빵집",asian:"아시아",vietnamese:"베트남",thai:"태국",indian:"인도",western:"양식",steak_house:"스테이크",fish:"생선",dumpling:"만두",soup:"국밥",tofu:"두부",duck:"오리",beef:"소고기",pork:"돼지고기"};
+function fmtKm(k){return k==null?"":(k<1?Math.round(k*1000/10)*10+"m":k.toFixed(1)+"km");}
+function nearTmap(p,key){
+  var u="https://apis.openapi.sk.com/tmap/pois?version=1&format=json&searchKeyword="+encodeURIComponent("음식점")+"&searchType=all&searchtypCd=R&centerLat="+p.lat+"&centerLon="+p.lon+"&radius=3&page=1&count=15&reqCoordType=WGS84GEO&resCoordType=WGS84GEO&multiPoint=N&appKey="+encodeURIComponent(key);
+  return fetch(u,{headers:{"Accept":"application/json"}}).then(function(r){if(r.status===204)return {};if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
+    var a=(((j||{}).searchPoiInfo||{}).pois||{}).poi||[];
+    return a.map(function(o){var lat=parseFloat(o.frontLat||o.noorLat),lon=parseFloat(o.frontLon||o.noorLon);
+      return {name:o.name,lat:lat,lon:lon,cat:o.lowerBizName||o.middleBizName||"",addr:[o.middleAddrName,o.lowerAddrName].filter(Boolean).join(" "),km:o.radius!=null&&o.radius!==""?parseFloat(o.radius):(isFinite(lat)?km(p.lat,p.lon,lat,lon):null)};});
+  });
+}
+var OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+function nearOsm(p,n){
+  n=n||0;
+  var q='[out:json][timeout:20];nwr(around:3000,'+p.lat+','+p.lon+')["amenity"~"^(restaurant|fast_food)$"]["name"];out center 60;';
+  return fetch(OVERPASS[n]+"?data="+encodeURIComponent(q)).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
+    return (j.elements||[]).map(function(e){var t=e.tags||{},lat=e.lat!=null?e.lat:(e.center||{}).lat,lon=e.lon!=null?e.lon:(e.center||{}).lon;
+      var c=(t.cuisine||"").split(";")[0].trim();
+      return {name:t["name:ko"]||t.name,lat:lat,lon:lon,cat:CUISINE[c]||(t.amenity==="fast_food"?"간편식":"음식점"),addr:t["addr:street"]||t["addr:city"]||"",km:km(p.lat,p.lon,lat,lon)};});
+  }).catch(function(err){if(n+1<OVERPASS.length)return nearOsm(p,n+1);throw err;});
+}
 function nearList(p,box){
   var key=tmapKey(),id=p.lat+","+p.lon;
-  var head='<div class="fh2">근처 식당 <span>T맵 검색 · 가까운 순 · 광고 아님</span></div>';
-  if(!key){box.innerHTML=head+'<p class="fmsg">T맵 앱키를 넣으면 근처 식당이 여기 바로 나열됩니다. <button type="button" class="btn small fset">T맵 연결 설정</button></p>';box.querySelector(".fset").onclick=function(){openHelp("set",null);};return;}
-  var show=function(list){
-    if(!list.length){box.innerHTML=head+'<p class="fmsg">3km 안에서 찾은 식당이 없습니다.</p>';return;}
-    box.innerHTML=head+'<ol class="fl2">'+list.map(function(r){
-      return '<li><div class="fi"><b>'+esc(r.name)+'</b><span>'+esc([r.cat,r.km!=null?(r.km<1?Math.round(r.km*1000)+"m":r.km.toFixed(1)+"km"):"",r.addr].filter(Boolean).join(" · "))+'</span></div>'+routeBtn({name:r.name,lat:r.lat,lon:r.lon},"btn small go2")+'</li>';}).join("")+'</ol>';
+  var show=function(list,src){
+    if(!list.length){box.innerHTML='<p class="fmsg">3km 안에서 찾은 식당이 없습니다. 아래 추천 기준으로 찾아보세요.</p>';return;}
+    box.innerHTML='<ol class="fl2">'+list.map(function(r){
+      return '<li>'+routeBtn({name:r.name,lat:r.lat,lon:r.lon},"fitem",'<span class="fi"><b>'+esc(r.name)+'</b><span>'+esc([r.cat,fmtKm(r.km),r.addr].filter(Boolean).join(" · "))+'</span></span><span class="fgo2">T맵</span>')+'</li>';}).join("")+
+      '</ol><p class="fsrc">'+(src==="tmap"?"T맵 장소 검색":"OpenStreetMap 지도 정보 (© OpenStreetMap contributors)")+' · 가까운 순 · 광고·협찬 글 아님'+(src==="osm"?' · 작은 식당은 빠져 있을 수 있음':'')+'</p>';
   };
-  if(nearCache[id]){show(nearCache[id]);return;}
-  box.innerHTML=head+'<p class="fmsg">불러오는 중…</p>';
-  var u="https://apis.openapi.sk.com/tmap/pois?version=1&format=json&searchKeyword="+encodeURIComponent("음식점")+"&searchType=all&searchtypCd=R&centerLat="+p.lat+"&centerLon="+p.lon+"&radius=3&page=1&count=15&reqCoordType=WGS84GEO&resCoordType=WGS84GEO&multiPoint=N&appKey="+encodeURIComponent(key);
-  fetch(u,{headers:{"Accept":"application/json"}}).then(function(r){if(r.status===204)return {};if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
-    var a=(((j||{}).searchPoiInfo||{}).pois||{}).poi||[];
-    var list=a.map(function(o){var lat=parseFloat(o.frontLat||o.noorLat),lon=parseFloat(o.frontLon||o.noorLon);
-      return {name:o.name,lat:lat,lon:lon,cat:o.lowerBizName||o.middleBizName||"",addr:[o.middleAddrName,o.lowerAddrName].filter(Boolean).join(" "),km:o.radius!=null&&o.radius!==""?parseFloat(o.radius):(isFinite(lat)?km(p.lat,p.lon,lat,lon):null)};})
-      .filter(function(r){return r.name&&isFinite(r.lat)&&isFinite(r.lon);}).sort(function(x,y){return (x.km==null?99:x.km)-(y.km==null?99:y.km);});
-    nearCache[id]=list;show(list);
-  }).catch(function(err){
-    box.innerHTML=head+'<p class="fmsg">근처 식당을 불러오지 못했습니다'+(/^https/.test(location.protocol)&&!/claude/.test(location.hostname)?' (앱키나 TMAP 사용 신청을 확인해 주세요)':' (claude.ai 화면은 외부 연결이 막혀 있어, Vercel 앱이나 내려받은 파일에서 보입니다)')+'.</p>';
+  if(nearCache[id]){show(nearCache[id].list,nearCache[id].src);return;}
+  box.innerHTML='<p class="fmsg">근처 식당 불러오는 중…</p>';
+  var clean=function(a){var seen={};return a.filter(function(r){if(!r.name||!isFinite(r.lat)||!isFinite(r.lon))return false;var k=r.name.replace(/\s/g,"");if(seen[k])return false;seen[k]=1;return true;}).sort(function(x,y){return (x.km==null?99:x.km)-(y.km==null?99:y.km);}).slice(0,15);};
+  var done=function(src){return function(a){var l=clean(a);nearCache[id]={list:l,src:src};show(l,src);};};
+  var osm=function(){return nearOsm(p).then(done("osm"));};
+  (key?nearTmap(p,key).then(function(a){if(!a.length)return osm();done("tmap")(a);}).catch(osm):osm()).catch(function(){
+    box.innerHTML='<p class="fmsg">근처 식당을 불러오지 못했습니다'+(/claude/.test(location.hostname)||location.protocol==="about:"?' (claude.ai 화면은 외부 연결이 막혀 있습니다. 앱 주소 weekend-outing-ebon.vercel.app 에서 보입니다)':' (인터넷 연결을 확인해 주세요)')+'. 아래 추천 기준으로 찾아보세요.</p>';
   });
 }
 function bindFood(row,p){
