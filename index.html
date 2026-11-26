@@ -283,7 +283,7 @@ body{font-size:15px;overscroll-behavior-y:none}
 
 <div class="app">
   <header class="appbar">
-    <div class="brand"><b>주말 나들이</b><span class="ver">v23</span></div>
+    <div class="brand"><b>주말 나들이</b><span class="ver">v24</span></div>
     <div class="ctl">
       <button class="btn small" id="geoBtn" type="button" aria-label="현재 위치 찾기">현재 위치</button>
       <select id="citySel" aria-label="출발 도시 고르기"></select>
@@ -378,7 +378,7 @@ body{font-size:15px;overscroll-behavior-y:none}
         <h2>설정</h2>
         <div class="opts"><button class="btn" id="setBtn" type="button">T맵 연결 설정</button><button class="btn" id="phoneBtn" type="button">다른 기기로 열기 (QR)</button></div>
         <div class="phone" id="phoneBox" hidden><div class="code" id="phoneQR"></div><p>휴대폰 카메라로 찍으면 앱 주소(weekend-outing-ebon.vercel.app)가 열립니다.</p></div>
-        <p class="ver2">버전 23 · 2026.11.26 10:40 수정</p>
+        <p class="ver2">버전 24 · 2026.11.26 11:00 수정</p>
       </div>
     </section>
   </main>
@@ -3125,26 +3125,29 @@ var CUISINE={korean:"한식",chinese:"중식",japanese:"일식",sushi:"일식",r
 function fmtKm(k){return k==null?"":(k<1?Math.round(k*1000/10)*10+"m":k.toFixed(1)+"km");}
 function nearTmap(p,key){
   var u="https://apis.openapi.sk.com/tmap/pois?version=1&format=json&searchKeyword="+encodeURIComponent("음식점")+"&searchType=all&searchtypCd=R&centerLat="+p.lat+"&centerLon="+p.lon+"&radius=3&page=1&count=15&reqCoordType=WGS84GEO&resCoordType=WGS84GEO&multiPoint=N&appKey="+encodeURIComponent(key);
-  return fetch(u,{headers:{"Accept":"application/json"}}).then(function(r){if(r.status===204)return {};if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
+  return fetchT(u,9000,{headers:{"Accept":"application/json"}}).then(function(r){if(r.status===204)return {};if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
     var a=(((j||{}).searchPoiInfo||{}).pois||{}).poi||[];
     return a.map(function(o){var lat=parseFloat(o.frontLat||o.noorLat),lon=parseFloat(o.frontLon||o.noorLon);
       return {name:o.name,lat:lat,lon:lon,cat:o.lowerBizName||o.middleBizName||"",addr:[o.middleAddrName,o.lowerAddrName].filter(Boolean).join(" "),km:o.radius!=null&&o.radius!==""?parseFloat(o.radius):(isFinite(lat)?km(p.lat,p.lon,lat,lon):null)};});
   });
 }
-var OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
-function nearOsm(p,n){
-  n=n||0;
-  var q='[out:json][timeout:20];nwr(around:3000,'+p.lat+','+p.lon+')["amenity"~"^(restaurant|fast_food)$"]["name"];out center 60;';
-  return fetch(OVERPASS[n]+"?data="+encodeURIComponent(q)).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(j){
-    return (j.elements||[]).map(function(e){var t=e.tags||{},lat=e.lat!=null?e.lat:(e.center||{}).lat,lon=e.lon!=null?e.lon:(e.center||{}).lon;
-      var c=(t.cuisine||"").split(";")[0].trim();
-      return {name:t["name:ko"]||t.name,lat:lat,lon:lon,cat:CUISINE[c]||(t.amenity==="fast_food"?"간편식":"음식점"),addr:t["addr:street"]||t["addr:city"]||"",km:km(p.lat,p.lon,lat,lon)};});
-  }).catch(function(err){if(n+1<OVERPASS.length)return nearOsm(p,n+1);throw err;});
+function fetchT(u,ms,opt){var c=window.AbortController?new AbortController():null;var t=setTimeout(function(){if(c)c.abort();},ms||9000);opt=opt||{};if(c)opt.signal=c.signal;
+  return fetch(u,opt).then(function(r){clearTimeout(t);return r;},function(e){clearTimeout(t);throw e;});}
+// OpenStreetMap 장소 검색(Nominatim): 키 필요 없음, 한 장소당 한 번만 요청
+function nearOsm(p){
+  var d=0.04,dl=d*1.25;
+  var u="https://nominatim.openstreetmap.org/search?format=jsonv2&amenity=restaurant&bounded=1&limit=40&addressdetails=1&extratags=1&accept-language=ko&viewbox="+(p.lon-dl)+","+(p.lat+d)+","+(p.lon+dl)+","+(p.lat-d);
+  return fetchT(u,9000).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(a){
+    return (a||[]).map(function(e){var lat=parseFloat(e.lat),lon=parseFloat(e.lon),x=e.extratags||{},ad=e.address||{};
+      var c=(x.cuisine||"").split(";")[0].trim();
+      return {name:e.name,lat:lat,lon:lon,cat:CUISINE[c]||"음식점",addr:[ad.village||ad.town||ad.suburb||ad.city_district||"",ad.road||""].filter(Boolean).join(" "),km:km(p.lat,p.lon,lat,lon)};})
+      .filter(function(r){return r.km<=4;});
+  });
 }
 function nearList(p,box){
   var key=tmapKey(),id=p.lat+","+p.lon;
   var show=function(list,src){
-    if(!list.length){box.innerHTML='<p class="fmsg">3km 안에서 찾은 식당이 없습니다. 아래 추천 기준으로 찾아보세요.</p>';return;}
+    if(!list.length){box.innerHTML='<p class="fmsg">근처 4km 안에서 찾은 식당이 없습니다. 아래 추천 기준으로 찾아보세요.</p>';return;}
     box.innerHTML='<ol class="fl2">'+list.map(function(r){
       return '<li>'+routeBtn({name:r.name,lat:r.lat,lon:r.lon},"fitem",'<span class="fi"><b>'+esc(r.name)+'</b><span>'+esc([r.cat,fmtKm(r.km),r.addr].filter(Boolean).join(" · "))+'</span></span><span class="fgo2">T맵</span>')+'</li>';}).join("")+
       '</ol><p class="fsrc">'+(src==="tmap"?"T맵 장소 검색":"OpenStreetMap 지도 정보 (© OpenStreetMap contributors)")+' · 가까운 순 · 광고·협찬 글 아님'+(src==="osm"?' · 작은 식당은 빠져 있을 수 있음':'')+'</p>';
