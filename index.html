@@ -286,11 +286,13 @@ body{font-size:15px;overscroll-behavior-y:none}
 .tag.pass{background:var(--accent-soft);color:var(--accent)}
 .listnote{font-size:11px;color:var(--faint);padding:0 4px}
 .morebtn{margin:10px auto;display:flex}
+.tag.here{background:var(--warm-soft);color:var(--warm)}
+.localnote{font-size:12px;color:var(--muted);padding:0 4px}
 </style>
 
 <div class="app">
   <header class="appbar">
-    <div class="brand"><b>주말 나들이</b><span class="ver">v27</span></div>
+    <div class="brand"><b>주말 나들이</b><span class="ver">v28</span></div>
     <div class="ctl">
       <button class="btn small" id="geoBtn" type="button" aria-label="현재 위치 찾기">현재 위치</button>
     </div>
@@ -341,6 +343,7 @@ body{font-size:15px;overscroll-behavior-y:none}
         </div>
         <span class="status" id="status"></span>
       </div>
+      <p class="localnote" id="localNote" hidden></p>
       <div class="box list" id="list"></div>
       <p class="listnote">명소 227곳 중 이동 시간 안에서 최대 20곳 · 관광주민증 참여 52개 지역 162곳과 그 밖의 명소 65곳 · 지도 위치는 어림값이라 길찾기는 T맵이 이름으로 찾습니다(처음 넣은 54곳은 좌표로 안내).</p>
     </section>
@@ -386,7 +389,7 @@ body{font-size:15px;overscroll-behavior-y:none}
         <h2>설정</h2>
         <div class="opts"><button class="btn" id="setBtn" type="button">T맵 연결 설정</button><button class="btn" id="phoneBtn" type="button">다른 기기로 열기 (QR)</button></div>
         <div class="phone" id="phoneBox" hidden><div class="code" id="phoneQR"></div><p>휴대폰 카메라로 찍으면 앱 주소(weekend-outing-ebon.vercel.app)가 열립니다.</p></div>
-        <p class="ver2">버전 27 · 2026.11.27 14:30 수정</p>
+        <p class="ver2">버전 28 · 2026.11.27 23:30 수정</p>
       </div>
     </section>
   </main>
@@ -3180,7 +3183,7 @@ function nearestCity(la,lo){var i=nearestGu(la,lo);return i>=0?SGG[i][0]+" "+SGG
 function setOrigin(la,lo,label,how,gi){
   state.lat=la;state.lon=lo;state.label=label;
   $("where").textContent=label;$("how").textContent=how;
-  if(gi==null)gi=nearestGu(la,lo);
+  if(gi==null)gi=nearestGu(la,lo);state.gu=gi>=0?SGG[gi]:null;
   if(gi>=0&&SGG[gi]){sdSel.value=SGG[gi][0];fillGu(SGG[gi][0],how==="직접 고른 출발지"||how==="지난번 출발지"?gi:"");}
   store("wk-origin",JSON.stringify({lat:la,lon:lo,label:label,gi:gi}));
   drawMe();loadWeather();render();renderEvents();
@@ -3268,13 +3271,20 @@ document.querySelectorAll("#typeSeg button").forEach(function(b){b.addEventListe
 function setType(t){state.type=t;document.querySelectorAll("#typeSeg button").forEach(function(x){x.setAttribute("aria-pressed",String(x.dataset.t===t));});store("wk-type",t);}
 $("rangeSel").addEventListener("change",function(){state.range=+$("rangeSel").value;store("wk-range",state.range);render();});
 var rReq=0;
+// 출발지로 고른 시·군·구 안의 명소는 필터·거리와 상관없이 맨 앞에 보여 줌
+function isLocal(p,g){if(!g||p.sido!==g[0])return false;var n=g[1];return n.indexOf(p.r)===0||n.indexOf(" "+p.r)>=0||(p.r===g[0]&&!/군$/.test(n));}
 function render(keep){
   if(state.lat==null)return;if(!keep)state.page=1;var my=++rReq;
-  var list=P.map(function(p){var k=km(state.lat,state.lon,p.lat,p.lon);return Object.assign({},p,{km:k,min:driveMin(k)});})
+  var g=state.gu;
+  var all=P.map(function(p){var k=km(state.lat,state.lon,p.lat,p.lon);return Object.assign({},p,{km:k,min:driveMin(k),local:isLocal(p,g)});});
+  var list=all.filter(function(p){return p.local;}).sort(function(a,b){return a.km-b.km;}).concat(all.filter(function(p){return !p.local;})
     .filter(function(p){return p.min<=state.range;})
     .filter(function(p){return state.type==="all"||(state.type==="perk"?!!PERKS[p.r]:state.type==="in"?p.t!=="out":p.t!=="in");})
-    .sort(function(a,b){return a.km-b.km;});
+    .sort(function(a,b){return a.km-b.km;}));
   state.total=list.length;list=list.slice(0,state.page*20);
+  var nl=$("localNote"),lc=all.filter(function(p){return p.local;}).length;
+  if(g&&!lc){nl.textContent=g[0]+" "+g[1]+" 안에는 아직 넣어 둔 명소가 없어, 가까운 곳부터 보여 드립니다.";nl.hidden=false;}
+  else if(g&&lc){nl.textContent=g[0]+" "+g[1]+" 명소 "+lc+"곳을 맨 위에 두었습니다 (필터와 상관없이 표시).";nl.hidden=false;}else nl.hidden=true;
   state.sel=-1;
   if(!list.length){$("list").innerHTML='<div class="empty">이 이동 시간 안에는 추천할 명소가 없습니다. 이동 거리를 늘려 보세요.</div>';$("status").textContent="";mapData.recs=[];if(map){closePop();centerOn(state.lat,state.lon,250);}return;}
   draw(list);$("status").textContent="목적지 날씨 확인 중";
@@ -3284,7 +3294,7 @@ function render(keep){
       p.wx=!wxRange()?[]:tripIdx(d.time).map(function(j){return {day:dayLabel(d.time[j]),code:d.weather_code[j],hi:d.temperature_2m_max[j],lo:d.temperature_2m_min[j],pp:d.precipitation_probability_max[j]};});
       p.rainy=p.wx.length&&p.wx.every(function(w){return wet(w.code,w.pp);});
       p.someRain=p.wx.some(function(w){return wet(w.code,w.pp);});
-      p.score=p.km+(p.rainy&&p.t==="out"?160:p.someRain&&p.t==="out"?60:0)-(p.someRain&&p.t==="in"?30:0)-(PERKS[p.r]?15:0);});
+      p.score=p.km+(p.rainy&&p.t==="out"?160:p.someRain&&p.t==="out"?60:0)-(p.someRain&&p.t==="in"?30:0)-(PERKS[p.r]?15:0)-(p.local?1000:0);});
     list.sort(function(a,b){return a.score-b.score;});draw(list);$("status").textContent=wxRange()?"여행일 날씨 반영":"예보 전이라 가까운 순";
   }).catch(function(){if(my!==rReq)return;$("status").textContent="가까운 순";});
 }
@@ -3373,7 +3383,7 @@ function draw(list){
   list.forEach(function(p,i){
     var perks=PERKS[p.r],best=perks?perks.reduce(function(m,k){return parseInt(k[1])>parseInt(m[1])?k:m;}):null;
     var row=document.createElement("div");row.className="row";row.tabIndex=0;row.dataset.i=i;
-    var tags='<span class="tag">'+TYPE[p.t]+'</span>'+(best?'<span class="tag perk">관광주민증 최대 '+best[1]+' 할인</span>':(p.pass!==false?'<span class="tag pass">관광주민증 지역</span>':''))+(p.someRain?'<span class="tag wet">'+(p.rainy?'여행 내내 비':'비 오는 날 있음')+'</span>':'');
+    var tags='<span class="tag">'+TYPE[p.t]+'</span>'+(best?'<span class="tag perk">관광주민증 최대 '+best[1]+' 할인</span>':(p.pass!==false?'<span class="tag pass">관광주민증 지역</span>':''))+(p.local?'<span class="tag here">출발 지역</span>':'')+(p.someRain?'<span class="tag wet">'+(p.rainy?'여행 내내 비':'비 오는 날 있음')+'</span>':'');
     row.innerHTML='<div class="num'+(p.someRain?' rain':'')+'">'+(i+1)+'</div>'+
       '<div style="min-width:0"><div class="n">'+esc(p.name)+'</div><div class="m">'+esc(p.sido===p.r?p.r:p.sido+' '+p.r)+' · 약 '+fmtMin(p.min)+' · '+Math.round(p.km)+'km</div>'+(p.wx?'<div class="m">'+wxLine(p)+'</div>':'')+'<div class="tags">'+tags+'</div></div>'+
       routeBtn(p,"btn main go")+
